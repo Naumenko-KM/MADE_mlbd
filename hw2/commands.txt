@@ -1,0 +1,54 @@
+docker-compose up
+sudo docker exec -it namenode bin/bash
+hdfs dfs -put /artists.csv /artists.csv
+
+sudo docker exec -it hive /bin/bash
+beeline --incremental=true
+
+# Создаем таблицу из csv
+!connect jdbc:hive2://localhost:10000/default
+CREARTE TABLE artists(mbid string, artist_mb string, artist_lastfm string, country_mb string, country_lastfm string, tags_mb string, tags_lastfm string, listeners_lastfm int, scrobbles_lastfm int, ambiguous_artist string)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ',';
+LOAD DATA INPATH '/artists.csv' into table artists;
+
+ALTER TABLE artists
+SET TBLPROPERTIES ("skip.header.line.count"="1");
+
+
+# 2.a
+SELECT artist_lastfm, scrobbles_lastfm
+FROM artists
+ORDER BY scrobbles_lastfm desc
+LIMIT 1;
+
+|The Beatles | 517126254 |
+
+# 2.b
+SELECT tags, count(*) AS count
+FROM (SELECT explode(split(tags_lastfm,';')) AS tags FROM artists) tmp
+WHERE tags != ""
+GROUP BY tags
+ORDER BY count desc
+LIMIT 1;
+
+|seen live | 81278 |
+
+2.d
+SELECT country_lastfm, count(*) AS count
+FROM artists
+WHERE country_lastfm != ""
+GROUP BY country_lastfm
+ORDER BY count DESC
+LIMIT 10;
+
+|United States    | 26542  |
+| United Kingdom  | 14209  |
+| Japan           | 12784  |
+| Germany         | 12444  |
+| France          | 8589   |
+| Sweden          | 7171   |
+| Italy           | 5676   |
+| Russia          | 5315   |
+| Canada          | 5283   |
+| Finland         | 5100   |
